@@ -8,34 +8,35 @@ import Combine
 import SwiftUI
 import WebKit
 
-struct SwiftWebInputView: View {
+public struct SwiftWebInputView: View {
     @ObservedObject private(set) var webInputViewModel: WebInputViewModel
-    private var onSubmit: () -> Void
-    private var inputPlaceholder: String
-    init(
+    private let onSubmit: () -> Void
+    private let inputPlaceholder: String
+    private let minTextHeight: CGFloat
+    private let maxTextHeight: CGFloat
+
+    public init(
         webInputViewModel: WebInputViewModel,
         onSubmit: @escaping () -> Void,
-        inputPlaceholder: String
+        inputPlaceholder: String,
+        minTextHeight: CGFloat = 40,
+        maxTextHeight: CGFloat = 300
     ) {
         self._webInputViewModel = ObservedObject(wrappedValue: webInputViewModel)
         self.onSubmit = onSubmit
         self.inputPlaceholder = inputPlaceholder
+        self.minTextHeight = minTextHeight
+        self.maxTextHeight = maxTextHeight
     }
 
-    static let minTextHeight: CGFloat = 40
-    static let maxTextHeight: CGFloat = 500
-
-    var body: some View {
-        // let _ = Self._printChanges()
+    public var body: some View {
+        let _ = Self._printChanges()
         WebInputViewRepresentable(
             webInputViewModel: webInputViewModel,
             onSubmit: onSubmit,
             inputPlaceholder: inputPlaceholder
         )
-        .frame(
-            height: max(
-                SwiftWebInputView.minTextHeight,
-                min(webInputViewModel.height, SwiftWebInputView.maxTextHeight)))
+        .frame(height: max(minTextHeight, min(webInputViewModel.height, maxTextHeight)))
     }
 
     // Test Helpers
@@ -50,12 +51,14 @@ struct SwiftWebInputView: View {
     #endif
 }
 
-final class WebInputViewModel: ObservableObject {
+public final class WebInputViewModel: ObservableObject {
     // The text content of the chat field
     public var text: String = ""
 
     /// The height of the text field.
     @Published public var height: CGFloat = 52
+
+    public init() {}
 
     func clearText() {
         self.text = ""
@@ -118,8 +121,9 @@ struct WebInputViewRepresentable: NSViewRepresentable {
             self.parent = parent
         }
 
-        @MainActor func userContentController(_: WKUserContentController, didReceive message: WKScriptMessage)
-        {
+        @MainActor func userContentController(
+            _: WKUserContentController, didReceive message: WKScriptMessage
+        ) {
             switch message.name {
             case "textChanged":
                 if let text = message.body as? String {
