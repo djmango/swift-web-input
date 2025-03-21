@@ -113,7 +113,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
         Coordinator(self)
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, @preconcurrency WKScriptMessageHandler, WKUIDelegate {
         var parent: WebInputViewRepresentable
         var cancellables = Set<AnyCancellable>()
 
