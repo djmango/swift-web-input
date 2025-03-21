@@ -23,5 +23,6 @@ let package = Package(
             name: "SwiftWebInputTests",
             dependencies: ["SwiftWebInput"]
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )

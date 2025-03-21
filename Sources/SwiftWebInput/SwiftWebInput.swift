@@ -17,7 +17,7 @@ struct SwiftWebInputView: View {
         onSubmit: @escaping () -> Void,
         inputPlaceholder: String
     ) {
-        self.webInputViewModel = webInputViewModel
+        self._webInputViewModel = ObservedObject(wrappedValue: webInputViewModel)
         self.onSubmit = onSubmit
         self.inputPlaceholder = inputPlaceholder
     }
@@ -40,7 +40,7 @@ struct SwiftWebInputView: View {
 
     // Test Helpers
     #if DEBUG
-        public func getWebInputViewModelForTesting() -> WebInputViewModel {
+        @MainActor public func getWebInputViewModelForTesting() -> WebInputViewModel {
             return webInputViewModel
         }
 
@@ -101,7 +101,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
             completionHandler: nil)
     }
 
-    private func setFocus(_ webView: WKWebView) {
+    @MainActor private func setFocus(_ webView: WKWebView) {
         webView.evaluateJavaScript(
             "document.getElementById('editor').focus();", completionHandler: nil)
     }
