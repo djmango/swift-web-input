@@ -30,7 +30,7 @@ public struct SwiftWebInputView: View {
     }
 
     public var body: some View {
-        let _ = Self._printChanges()
+        // let _ = Self._printChanges()
         WebInputViewRepresentable(
             webInputViewModel: webInputViewModel,
             onSubmit: onSubmit,
