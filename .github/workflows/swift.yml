@@ -20,6 +20,15 @@ jobs:
       uses: fwal/setup-swift@v2
       with:
         swift-version: '6.0.0'
+    - name: Cache Swift dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          Package.resolved
+          .build
+        key: ${{ runner.os }}-swift-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-swift-
     - name: Build
       run: swift build -v
     - name: Run tests

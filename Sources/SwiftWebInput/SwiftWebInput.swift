@@ -118,20 +118,16 @@ struct WebInputViewRepresentable: NSViewRepresentable {
             self.parent = parent
         }
 
-        func userContentController(_: WKUserContentController, didReceive message: WKScriptMessage)
+        @MainActor func userContentController(_: WKUserContentController, didReceive message: WKScriptMessage)
         {
             switch message.name {
             case "textChanged":
                 if let text = message.body as? String {
-                    DispatchQueue.main.async {
-                        self.parent.webInputViewModel.text = text
-                    }
+                    self.parent.webInputViewModel.text = text
                 }
             case "heightChanged":
                 if let height = message.body as? CGFloat {
-                    DispatchQueue.main.async {
-                        self.parent.webInputViewModel.height = height
-                    }
+                    self.parent.webInputViewModel.height = height
                 }
             case "submit":
                 self.parent.onSubmit()
