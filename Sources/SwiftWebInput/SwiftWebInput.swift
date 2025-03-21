@@ -53,7 +53,7 @@ public struct SwiftWebInputView: View {
 
 public final class WebInputViewModel: ObservableObject {
     // The text content of the chat field
-    public var text: String = ""
+    @Published public var text: String = ""
 
     /// The height of the text field.
     @Published public var height: CGFloat = 52
