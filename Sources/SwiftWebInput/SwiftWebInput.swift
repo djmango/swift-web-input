@@ -1,7 +1,7 @@
 //
 //  SwiftWebInput.swift
 //
-//  Created by Sulaiman Ghori on 6/20/24.
+//  Created by Sulaiman Khan Ghori on 6/20/24.
 //
 
 import Combine
