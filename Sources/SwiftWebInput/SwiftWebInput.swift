@@ -113,7 +113,9 @@ struct WebInputViewRepresentable: NSViewRepresentable {
         Coordinator(self)
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate, @preconcurrency WKScriptMessageHandler, WKUIDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, @preconcurrency WKScriptMessageHandler,
+        WKUIDelegate
+    {
         var parent: WebInputViewRepresentable
         var cancellables = Set<AnyCancellable>()
 
@@ -191,10 +193,22 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                         background-color: transparent;
                         white-space: pre-wrap;
                     }
+
                     #editor:empty:before {
                         content: attr(placeholder);
-                        color: gray;
                         pointer-events: none;
+                    }
+
+                    @media (prefers-color-scheme: light) {
+                        #editor:empty:before {
+                            color: rgba(0, 0, 0, 0.5);
+                        }
+                    }
+
+                    @media (prefers-color-scheme: dark) {
+                        #editor:empty:before {
+                            color: rgba(255, 255, 255, 0.5);
+                        }
                     }
                     input, textarea, div[contenteditable] {
                         caret-color: \(accentColorStr);
