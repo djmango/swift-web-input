@@ -14,19 +14,22 @@ public struct SwiftWebInputView: View {
     private let inputPlaceholder: String
     private let minTextHeight: CGFloat
     private let maxTextHeight: CGFloat
+    private let textLengthForLargeTextFile: Int
 
     public init(
         webInputViewModel: WebInputViewModel,
         onSubmit: @escaping () -> Void,
         inputPlaceholder: String,
         minTextHeight: CGFloat = 40,
-        maxTextHeight: CGFloat = 300
+        maxTextHeight: CGFloat = 300,
+        textLengthForLargeTextFile: Int = 2000
     ) {
         self._webInputViewModel = ObservedObject(wrappedValue: webInputViewModel)
         self.onSubmit = onSubmit
         self.inputPlaceholder = inputPlaceholder
         self.minTextHeight = minTextHeight
         self.maxTextHeight = maxTextHeight
+        self.textLengthForLargeTextFile = textLengthForLargeTextFile
     }
 
     public var body: some View {
@@ -34,7 +37,8 @@ public struct SwiftWebInputView: View {
         WebInputViewRepresentable(
             webInputViewModel: webInputViewModel,
             onSubmit: onSubmit,
-            inputPlaceholder: inputPlaceholder
+            inputPlaceholder: inputPlaceholder,
+            textLengthForLargeTextFile: textLengthForLargeTextFile
         )
         .frame(height: max(minTextHeight, min(webInputViewModel.height, maxTextHeight)))
     }
@@ -58,6 +62,13 @@ public final class WebInputViewModel: ObservableObject {
     /// The height of the text field.
     @Published public var height: CGFloat = 52
 
+    // File handling properties
+    @Published public var pastedFileURLs: [URL] = []
+    @Published public var largeTextFileURL: URL?
+
+    // Callbacks for event handling
+    public var onFilePasted: (([URL]) -> Void)?
+
     public init() {}
 
     func clearText() {
@@ -69,18 +80,21 @@ struct WebInputViewRepresentable: NSViewRepresentable {
     private var webInputViewModel: WebInputViewModel
     private var onSubmit: () -> Void
     private var inputPlaceholder: String
+    private var textLengthForLargeTextFile: Int
 
     init(
         webInputViewModel: WebInputViewModel, onSubmit: @escaping () -> Void,
-        inputPlaceholder: String
+        inputPlaceholder: String,
+        textLengthForLargeTextFile: Int
     ) {
         self.webInputViewModel = webInputViewModel
         self.onSubmit = onSubmit
         self.inputPlaceholder = inputPlaceholder
+        self.textLengthForLargeTextFile = textLengthForLargeTextFile
     }
 
     func makeNSView(context: Context) -> WKWebView {
-        let webView = CustomWebView()
+        let webView = CustomWebView(webInputViewModel: webInputViewModel)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
 
@@ -92,6 +106,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
         contentController.add(context.coordinator, name: "textChanged")
         contentController.add(context.coordinator, name: "heightChanged")
         contentController.add(context.coordinator, name: "submit")
+        contentController.add(context.coordinator, name: "largeTextPasted")
 
         webView.loadHTMLString(htmlContent, baseURL: nil)
 
@@ -137,6 +152,20 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                 }
             case "submit":
                 self.parent.onSubmit()
+            case "largeTextPasted":
+                if let text = message.body as? String {
+                    do {
+                        let tempDir = FileManager.default.temporaryDirectory
+                        let fileURL = tempDir.appendingPathComponent(
+                            "pasted_text_\(UUID().uuidString).txt")
+                        try text.write(to: fileURL, atomically: true, encoding: .utf8)
+                        self.parent.webInputViewModel.largeTextFileURL = fileURL
+                        self.parent.webInputViewModel.onFilePasted?([fileURL])
+                        print("Large text file created: \(fileURL)")
+                    } catch {
+                        print("Error writing large text to file: \(error)")
+                    }
+                }
             default:
                 break
             }
@@ -263,9 +292,13 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                 editor.addEventListener('paste', function(e) {
                     e.preventDefault();
                     const text = e.clipboardData.getData('text/plain');
-                    document.execCommand('insertText', false, text);
-                    webkit.messageHandlers.textChanged.postMessage(editor.innerText);
-                    updateHeight();
+                    if (text.length > \(textLengthForLargeTextFile)) {
+                        webkit.messageHandlers.largeTextPasted.postMessage(text);
+                    } else {
+                        document.execCommand('insertText', false, text);
+                        webkit.messageHandlers.textChanged.postMessage(editor.innerText);
+                        updateHeight();
+                    }
                 });
 
                 editor.addEventListener('keydown', function(e) {
@@ -313,6 +346,17 @@ struct WebInputViewRepresentable: NSViewRepresentable {
     }
 
     class CustomWebView: WKWebView {
+        weak var webInputViewModel: WebInputViewModel?
+
+        init(webInputViewModel: WebInputViewModel) {
+            self.webInputViewModel = webInputViewModel
+            super.init(frame: .zero, configuration: .init())
+        }
+
+        required init?(coder: NSCoder) {
+            super.init(coder: coder)
+        }
+
         override var intrinsicContentSize: CGSize {
             .init(width: super.intrinsicContentSize.width, height: .zero)
         }
@@ -361,9 +405,19 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                         return true
                     }
                 case "v":
-                    if NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: self) {
+                    let pasteboard = NSPasteboard.general
+                    if let fileURLs = pasteboard.readObjects(forClasses: [NSURL.self], options: nil)
+                        as? [URL],
+                        !fileURLs.isEmpty
+                    {
+                        webInputViewModel?.pastedFileURLs = fileURLs
+                        webInputViewModel?.onFilePasted?(fileURLs)
+                        print("File URLs: \(fileURLs)")
+                        return true
+                    } else if NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: self) {
                         return true
                     }
+                    return false
                 case "a":
                     if NSApp.sendAction(
                         #selector(NSStandardKeyBindingResponding.selectAll(_:)), to: nil, from: self
