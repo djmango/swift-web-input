@@ -107,6 +107,8 @@ struct WebInputViewRepresentable: NSViewRepresentable {
         contentController.add(context.coordinator, name: "heightChanged")
         contentController.add(context.coordinator, name: "submit")
         contentController.add(context.coordinator, name: "largeTextPasted")
+        contentController.add(context.coordinator, name: "consoleLogHandler")
+        contentController.add(context.coordinator, name: "filePasted")
 
         webView.loadHTMLString(htmlContent, baseURL: nil)
 
@@ -165,6 +167,17 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                     } catch {
                         print("Error writing large text to file: \(error)")
                     }
+                }
+            case "consoleLogHandler":
+                print("JS Console - SwiftWebInput: \(String(describing: message.body))")
+            case "filePasted":
+                let pasteboard = NSPasteboard.general
+                if let fileURLs = pasteboard.readObjects(forClasses: [NSURL.self], options: nil)
+                    as? [URL],
+                    !fileURLs.isEmpty
+                {
+                    self.parent.webInputViewModel.pastedFileURLs = fileURLs
+                    self.parent.webInputViewModel.onFilePasted?(fileURLs)
                 }
             default:
                 break
@@ -247,6 +260,15 @@ struct WebInputViewRepresentable: NSViewRepresentable {
             <body>
                 <div id="editor" contenteditable="true" placeholder="\(placeholderText)"></div>
                 <script>
+                (function() {
+                    const originalConsoleLog = console.log;
+                    console.log = function(...args) {
+                        originalConsoleLog.apply(console, args);
+                        if (window.webkit?.messageHandlers?.consoleLogHandler) {
+                            window.webkit.messageHandlers.consoleLogHandler.postMessage(args.join(' '));
+                        }
+                    };
+                })();
                 // Add debounce utility function
                 function debounce(func, wait) {
                     let timeout;
@@ -306,13 +328,17 @@ struct WebInputViewRepresentable: NSViewRepresentable {
 
                 editor.addEventListener('paste', function(e) {
                     e.preventDefault();
-                    const text = e.clipboardData.getData('text/plain').replace(/\t/g, '    ');
-                    if (text.length > \(textLengthForLargeTextFile)) {
-                        webkit.messageHandlers.largeTextPasted.postMessage(text);
+                    if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+                        webkit.messageHandlers.filePasted.postMessage('');
                     } else {
-                        document.execCommand('insertText', false, text);
-                        webkit.messageHandlers.textChanged.postMessage(editor.innerText);
-                        debouncedUpdateHeight();
+                        const text = e.clipboardData.getData('text/plain').replace(/\t/g, '    ');
+                        if (text.length > \(textLengthForLargeTextFile)) {
+                            webkit.messageHandlers.largeTextPasted.postMessage(text);
+                        } else {
+                            document.execCommand('insertText', false, text);
+                            webkit.messageHandlers.textChanged.postMessage(editor.innerText);
+                            debouncedUpdateHeight();
+                        }
                     }
                 });
 
