@@ -247,8 +247,23 @@ struct WebInputViewRepresentable: NSViewRepresentable {
             <body>
                 <div id="editor" contenteditable="true" placeholder="\(placeholderText)"></div>
                 <script>
+                // Add debounce utility function
+                function debounce(func, wait) {
+                    let timeout;
+                    return function executedFunction(...args) {
+                        const later = () => {
+                            clearTimeout(timeout);
+                            func(...args);
+                        };
+                        clearTimeout(timeout);
+                        timeout = setTimeout(later, wait);
+                    };
+                }
                 const editor = document.getElementById('editor');
                 let lastHeight = 0;
+
+                // Wrap updateHeight with debounce
+                const debouncedUpdateHeight = debounce(updateHeight, 1);
 
                 function updateHeight() {
                     const newHeight = editor.scrollHeight;
@@ -261,7 +276,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                 function updateEditorContent(content) {
                     if (editor.innerText !== content) {
                         editor.innerText = content;
-                        updateHeight();
+                        debouncedUpdateHeight();
                         placeCaretAtEnd();
                     }
                 }
@@ -278,7 +293,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
 
                 function resetEditor() {
                     editor.innerText = '';
-                    updateHeight();
+                    debouncedUpdateHeight();
                 }
 
                 editor.addEventListener('input', function() {
@@ -286,18 +301,18 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                         editor.innerHTML = '';
                     }
                     webkit.messageHandlers.textChanged.postMessage(editor.innerText);
-                    updateHeight();
+                    debouncedUpdateHeight();
                 });
 
                 editor.addEventListener('paste', function(e) {
                     e.preventDefault();
-                    const text = e.clipboardData.getData('text/plain');
+                    const text = e.clipboardData.getData('text/plain').replace(/\t/g, '    ');
                     if (text.length > \(textLengthForLargeTextFile)) {
                         webkit.messageHandlers.largeTextPasted.postMessage(text);
                     } else {
                         document.execCommand('insertText', false, text);
                         webkit.messageHandlers.textChanged.postMessage(editor.innerText);
-                        updateHeight();
+                        debouncedUpdateHeight();
                     }
                 });
 
@@ -309,7 +324,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                             resetEditor();
                         } else {
                             document.execCommand('insertLineBreak');
-                            updateHeight();
+                            debouncedUpdateHeight();
                         }
                     }
                 });
@@ -330,7 +345,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                             }
                         }
                     });
-                    updateHeight();
+                    debouncedUpdateHeight();
                 }).observe(editor, {
                     attributes: true,
                     childList: true,
@@ -338,7 +353,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                     characterData: true
                 });
 
-                updateHeight();
+                debouncedUpdateHeight();
                 </script>
             </body>
             </html>
