@@ -161,7 +161,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                         try text.write(to: fileURL, atomically: true, encoding: .utf8)
                         self.parent.webInputViewModel.largeTextFileURL = fileURL
                         self.parent.webInputViewModel.onFilePasted?([fileURL])
-                        print("Large text file created: \(fileURL)")
+                        self.parent.webInputViewModel.pastedFileURLs.append(fileURL)
                     } catch {
                         print("Error writing large text to file: \(error)")
                     }
@@ -412,7 +412,6 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                     {
                         webInputViewModel?.pastedFileURLs = fileURLs
                         webInputViewModel?.onFilePasted?(fileURLs)
-                        print("File URLs: \(fileURLs)")
                         return true
                     } else if NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: self) {
                         return true
