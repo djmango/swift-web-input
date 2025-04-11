@@ -121,11 +121,6 @@ struct WebInputViewRepresentable: NSViewRepresentable {
             completionHandler: nil)
     }
 
-    @MainActor private func setFocus(_ webView: WKWebView) {
-        webView.evaluateJavaScript(
-            "document.getElementById('editor').focus();", completionHandler: nil)
-    }
-
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
@@ -477,9 +472,18 @@ struct WebInputViewRepresentable: NSViewRepresentable {
             NotificationCenter.default.addObserver(
                 self, selector: #selector(windowDidBecomeKey),
                 name: NSWindow.didBecomeKeyNotification, object: nil)
+            
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(requestFocus),
+                name: NSNotification.Name("RequestWebInputFocus"), object: nil)
         }
 
         @objc private func windowDidBecomeKey() {
+            self.evaluateJavaScript(
+                "document.getElementById('editor').focus();", completionHandler: nil)
+        }
+
+        @objc private func requestFocus() {
             self.evaluateJavaScript(
                 "document.getElementById('editor').focus();", completionHandler: nil)
         }
