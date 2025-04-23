@@ -253,7 +253,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
                 </style>
             </head>
             <body>
-                <div id="editor" contenteditable="true" placeholder="\(placeholderText)"></div>
+                <div id="editor" contenteditable="true" placeholder="\(placeholderText)" autocomplete="off" autocorrect="off" autocapitalize="off"></div>
                 <script>
                 (function() {
                     const originalConsoleLog = console.log;
