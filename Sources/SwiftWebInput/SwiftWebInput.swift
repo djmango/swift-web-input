@@ -69,6 +69,9 @@ public final class WebInputViewModel: ObservableObject {
   // Callbacks for event handling
   public var onFilePasted: (([URL]) -> Void)?
 
+  // Focus handling
+  @Published public var isFocused: Bool? = nil
+
   public init() {}
 
   func clearText() {
@@ -383,6 +386,7 @@ struct WebInputViewRepresentable: NSViewRepresentable {
 
   class CustomWebView: WKWebView {
     weak var webInputViewModel: WebInputViewModel?
+    private var cancellables = Set<AnyCancellable>()
 
     init(webInputViewModel: WebInputViewModel) {
       self.webInputViewModel = webInputViewModel
@@ -470,6 +474,22 @@ struct WebInputViewRepresentable: NSViewRepresentable {
       NotificationCenter.default.addObserver(self, selector: #selector(windowDidBecomeKey), name: NSWindow.didBecomeKeyNotification, object: nil)
 
       NotificationCenter.default.addObserver(self, selector: #selector(requestFocus), name: NSNotification.Name("RequestWebInputFocus"), object: nil)
+
+      // Add observer for focus state changes from SwiftUI
+      if let viewModel = webInputViewModel {
+        viewModel.$isFocused.sink { [weak self] isFocused in
+          if let isFocused = isFocused {
+            if isFocused {
+              self?.evaluateJavaScript("document.getElementById('editor').focus();", completionHandler: nil)
+              print("Focusing on editor")
+              Task {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                viewModel.isFocused = nil
+              }
+            }
+          }
+        }.store(in: &cancellables)
+      }
     }
 
     @objc private func windowDidBecomeKey() {
