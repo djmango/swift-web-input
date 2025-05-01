@@ -481,7 +481,6 @@ struct WebInputViewRepresentable: NSViewRepresentable {
           if let isFocused = isFocused {
             if isFocused {
               self?.evaluateJavaScript("document.getElementById('editor').focus();", completionHandler: nil)
-              print("Focusing on editor")
               Task {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 viewModel.isFocused = nil
