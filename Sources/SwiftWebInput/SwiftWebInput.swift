@@ -170,12 +170,75 @@ struct WebInputViewRepresentable: NSViewRepresentable {
           print("JS Console - SwiftWebInput: \(String(describing: message.body))")
         case "filePasted":
           let pasteboard = NSPasteboard.general
-          if let fileURLs = pasteboard.readObjects(forClasses: [NSURL.self], options: nil)
-            as? [URL],
-            !fileURLs.isEmpty
-          {
-            self.parent.webInputViewModel.pastedFileURLs = fileURLs
-            self.parent.webInputViewModel.onFilePasted?(fileURLs)
+          // Read all pasteboard objects and print their classes for debugging purposes
+          let pasteboardItems = pasteboard.pasteboardItems
+          if let items = pasteboardItems {
+            var extractedURLs: [URL] = []
+            for item in items {
+              for type in item.types {
+                if let data = item.data(forType: type) {
+                  // Attempt to extract URL from common file types
+                  if type == .fileURL, let urlString = String(data: data, encoding: .utf8), let url = URL(string: urlString) {
+                    extractedURLs.append(url)
+                  } else if type == .png {
+                    // Handle direct PNG data by saving to a temporary file
+                    let tempDir = FileManager.default.temporaryDirectory
+                    let fileURL = tempDir.appendingPathComponent("pasted_image_\(UUID().uuidString).png")
+                    do {
+                      try data.write(to: fileURL)
+                      extractedURLs.append(fileURL)
+                    } catch {
+                      print("Error saving PNG data to file: \(error)")
+                    }
+                  } else if type == .tiff {
+                    // Handle TIFF data by saving to a temporary file
+                    let tempDir = FileManager.default.temporaryDirectory
+                    let fileURL = tempDir.appendingPathComponent("pasted_image_\(UUID().uuidString).tiff")
+                    do {
+                      try data.write(to: fileURL)
+                      extractedURLs.append(fileURL)
+                    } catch {
+                      print("Error saving TIFF data to file: \(error)")
+                    }
+                  } else if type == .pdf {
+                    // Handle PDF data by saving to a temporary file
+                    let tempDir = FileManager.default.temporaryDirectory
+                    let fileURL = tempDir.appendingPathComponent("pasted_image_\(UUID().uuidString).pdf")
+                    do {
+                      try data.write(to: fileURL)
+                      extractedURLs.append(fileURL)
+                    } catch {
+                      print("Error saving PDF data to file: \(error)")
+                    }
+                  } else if type == .fileContents {
+                    // Handle file URL data by saving to a temporary file
+                    let tempDir = FileManager.default.temporaryDirectory
+                    let fileURL = tempDir.appendingPathComponent("pasted_file_\(UUID().uuidString).txt")
+                    do {
+                      try data.write(to: fileURL)
+                      extractedURLs.append(fileURL)
+                    } catch {
+                      print("Error saving file contents to file: \(error)")
+                    }
+                  } else {
+                    print("Pasteboard item type: \(type), no data available")
+                  }
+                }
+              }
+            }
+            if !extractedURLs.isEmpty {
+              self.parent.webInputViewModel.pastedFileURLs = extractedURLs
+              self.parent.webInputViewModel.onFilePasted?(extractedURLs)
+            } else if let fileURLs = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL], !fileURLs.isEmpty {
+              self.parent.webInputViewModel.pastedFileURLs = fileURLs
+              self.parent.webInputViewModel.onFilePasted?(fileURLs)
+            }
+          } else {
+            print("No pasteboard items available")
+            if let fileURLs = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL], !fileURLs.isEmpty {
+              self.parent.webInputViewModel.pastedFileURLs = fileURLs
+              self.parent.webInputViewModel.onFilePasted?(fileURLs)
+            }
           }
         default:
           break
